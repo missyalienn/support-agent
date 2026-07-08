@@ -17,7 +17,7 @@ def test_guardrail_passes_valid_order_id() -> None:
 
     result = guardrail(state)
 
-    assert result == {"retry_count": 0}
+    assert result == {"retry_count": 0, "escalation_reason": None}
 
 
 def test_guardrail_fails_missing_order_id() -> None:
@@ -26,6 +26,7 @@ def test_guardrail_fails_missing_order_id() -> None:
     result = guardrail(state)
 
     assert result["retry_count"] == 1
+    assert result["escalation_reason"] == EscalationReason.VALIDATION_FAILURE
     assert len(result["messages"]) == 1
     assert result["messages"][0].tool_call_id == "call_1"
 
@@ -50,10 +51,12 @@ def test_route_after_guardrail_second_failure_goes_to_handoff() -> None:
     assert route_after_guardrail({"retry_count": 2}) == "human_handoff"
 
 
-def test_human_handoff_sets_escalation_reason() -> None:
-    result = human_handoff({})
+def test_human_handoff_is_passthrough() -> None:
+    state = {"escalation_reason": EscalationReason.VALIDATION_FAILURE}
 
-    assert result["escalation_reason"] == EscalationReason.GUARDRAIL_FAILURE
+    result = human_handoff(state)
+
+    assert result == {}
 
 
 def test_guardrail_flow_retry_then_success() -> None:

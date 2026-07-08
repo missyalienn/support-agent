@@ -25,6 +25,13 @@ def route_after_guardrail(state: AgentState) -> str:
     return "agent"
 
 
+def route_after_check_result(state: AgentState) -> str:
+    """Route to handoff on an authorization mismatch, else back to agent."""
+    if state["escalation_reason"] is not None:
+        return "human_handoff"
+    return "agent"
+
+
 def build_graph() -> CompiledStateGraph:
     """Assemble the intake -> agent <-> (guardrail -> tools -> check_result) -> agent graph."""
     graph = StateGraph(AgentState)
@@ -45,7 +52,11 @@ def build_graph() -> CompiledStateGraph:
         {"tools": "tools", "agent": "agent", "human_handoff": "human_handoff"},
     )
     graph.add_edge("tools", "check_result")
-    graph.add_edge("check_result", "agent")
+    graph.add_conditional_edges(
+        "check_result",
+        route_after_check_result,
+        {"agent": "agent", "human_handoff": "human_handoff"},
+    )
     graph.add_edge("human_handoff", END)
 
     return graph.compile()

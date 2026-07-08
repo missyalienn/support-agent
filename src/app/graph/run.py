@@ -6,10 +6,11 @@ from app.graph.state import AgentState
 _graph = build_graph()
 
 
-def run_turn(user_message: str) -> AgentState:
+def run_turn(user_message: str, customer_id: str) -> AgentState:
     """Invoke the graph with a single user message and return the final state."""
     initial_state: AgentState = {
         "messages": [HumanMessage(content=user_message)],
+        "customer_id": customer_id,
         "order_id": None,
         "order": None,
         "order_status": None,

@@ -5,6 +5,7 @@ from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import ToolMessage
 
 from app.config import settings
+from app.data.store import get_order_by_id
 from app.graph.state import AgentState, EscalationReason
 from app.tools.order_tools import get_order, get_order_status
 
@@ -43,7 +44,7 @@ def guardrail(state: AgentState) -> dict:
 
     if order_id and _ORDER_ID_PATTERN.match(order_id):
         logger.info("guardrail_passed", order_id=order_id)
-        return {"retry_count": 0}
+        return {"retry_count": 0, "escalation_reason": None}
 
     retry_count = state.get("retry_count", 0) + 1
     logger.warning("guardrail_failed", order_id=order_id, retry_count=retry_count)
@@ -51,16 +52,33 @@ def guardrail(state: AgentState) -> dict:
         content=f"Invalid order_id {order_id!r}: must match 'ord_<number>'.",
         tool_call_id=tool_call["id"],
     )
-    return {"messages": [error_message], "retry_count": retry_count}
+    return {
+        "messages": [error_message],
+        "retry_count": retry_count,
+        "escalation_reason": EscalationReason.VALIDATION_FAILURE,
+    }
 
 
 def check_result(state: AgentState) -> dict:
-    """Pass-through stub; real result validation lands in a later phase."""
-    logger.info("check_result_passthrough")
-    return {}
+    """Verify the fetched order belongs to the requesting customer."""
+    tool_call = state["messages"][-2].tool_calls[0]
+    order_id = tool_call.get("args", {}).get("order_id")
+    order = get_order_by_id(order_id)
+
+    if order is not None and order.customer_id != state["customer_id"]:
+        logger.warning(
+            "check_result_authorization_mismatch",
+            order_id=order_id,
+            requesting_customer_id=state["customer_id"],
+            order_customer_id=order.customer_id,
+        )
+        return {"escalation_reason": EscalationReason.AUTHORIZATION_MISMATCH}
+
+    logger.info("check_result_passed", order_id=order_id)
+    return {"escalation_reason": None}
 
 
 def human_handoff(state: AgentState) -> dict:
-    """Stub handoff node; real escalation logic lands in a later phase."""
-    logger.info("human_handoff", reason=EscalationReason.GUARDRAIL_FAILURE)
-    return {"escalation_reason": EscalationReason.GUARDRAIL_FAILURE}
+    """Stub handoff node; real escalation logic (e.g. ticket creation) lands in a later phase."""
+    logger.info("human_handoff", reason=state.get("escalation_reason"))
+    return {}

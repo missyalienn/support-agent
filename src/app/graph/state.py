@@ -10,14 +10,15 @@ class EscalationReason(StrEnum):
     """Distinct, taggable reasons for handing off to a human."""
 
     OUT_OF_SCOPE = "out_of_scope"
-    GUARDRAIL_FAILURE = "guardrail_failure"
-    DATA_INCONSISTENCY = "data_inconsistency"
-    LOOP_LIMIT = "loop_limit"
+    VALIDATION_FAILURE = "validation_failure"
+    AUTHORIZATION_MISMATCH = "authorization_mismatch"
+    MAX_ITERATIONS_EXCEEDED = "max_iterations_exceeded"
     USER_REQUESTED = "user_requested"
 
 
 class AgentState(TypedDict):
     messages: Annotated[list, add_messages]
+    customer_id: str
     order_id: str | None
     order: Order | None
     order_status: OrderStatus | None
