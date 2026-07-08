@@ -3,11 +3,21 @@ from langgraph.graph import END, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.prebuilt import ToolNode
 
-from app.graph.nodes import agent, check_result, guardrail, handle_escalation, human_handoff, intake
+from app.graph.nodes import (
+    agent,
+    check_result,
+    guardrail,
+    handle_escalation,
+    human_handoff,
+    intake,
+    ticket_guardrail,
+)
 from app.graph.state import AgentState, EscalationReason
 from app.tools.order_tools import get_order, get_order_status
+from app.tools.ticket_tools import create_support_ticket
 
 ESCALATE_TOOL_NAME = "escalate_to_human"
+CREATE_TICKET_TOOL_NAME = "create_support_ticket"
 
 
 def should_continue(state: AgentState) -> str:
@@ -21,6 +31,8 @@ def should_continue(state: AgentState) -> str:
         return END
     if tool_calls[0]["name"] == ESCALATE_TOOL_NAME:
         return "handle_escalation"
+    if tool_calls[0]["name"] == CREATE_TICKET_TOOL_NAME:
+        return "ticket_guardrail"
     return "guardrail"
 
 
@@ -48,7 +60,8 @@ def build_graph() -> CompiledStateGraph:
     graph.add_node("intake", intake)
     graph.add_node("agent", agent)
     graph.add_node("guardrail", guardrail)
-    graph.add_node("tools", ToolNode([get_order, get_order_status]))
+    graph.add_node("ticket_guardrail", ticket_guardrail)
+    graph.add_node("tools", ToolNode([get_order, get_order_status, create_support_ticket]))
     graph.add_node("check_result", check_result)
     graph.add_node("handle_escalation", handle_escalation)
     graph.add_node("human_handoff", human_handoff)
@@ -58,11 +71,22 @@ def build_graph() -> CompiledStateGraph:
     graph.add_conditional_edges(
         "agent",
         should_continue,
-        {"guardrail": "guardrail", "handle_escalation": "handle_escalation", "human_handoff": "human_handoff", END: END},
+        {
+            "guardrail": "guardrail",
+            "ticket_guardrail": "ticket_guardrail",
+            "handle_escalation": "handle_escalation",
+            "human_handoff": "human_handoff",
+            END: END,
+        },
     )
     graph.add_edge("handle_escalation", "human_handoff")
     graph.add_conditional_edges(
         "guardrail",
+        route_after_guardrail,
+        {"tools": "tools", "agent": "agent", "human_handoff": "human_handoff"},
+    )
+    graph.add_conditional_edges(
+        "ticket_guardrail",
         route_after_guardrail,
         {"tools": "tools", "agent": "agent", "human_handoff": "human_handoff"},
     )

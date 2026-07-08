@@ -10,11 +10,14 @@ from app.data.store import get_order_by_id
 from app.graph.state import AgentState, EscalationReason
 from app.tools.escalation_tools import escalate_to_human
 from app.tools.order_tools import get_order, get_order_status
+from app.tools.ticket_tools import create_support_ticket
 
 logger = structlog.get_logger(__name__)
 
 _ORDER_ID_PATTERN = re.compile(r"^ord_\d+$")
 MAX_AGENT_TURNS = 6
+MIN_ISSUE_SUMMARY_WORDS = 5
+CREATE_TICKET_TOOL_NAME = "create_support_ticket"
 
 _SYSTEM_PROMPT = SystemMessage(
     content=(
@@ -22,14 +25,17 @@ _SYSTEM_PROMPT = SystemMessage(
         "Use get_order or get_order_status to answer questions about a customer's own orders. "
         "If the user asks about anything unrelated to their orders, call escalate_to_human "
         "with reason='out_of_scope'. If the user explicitly asks to speak to a person or a "
-        "human agent, call escalate_to_human with reason='user_requested'."
+        "human agent, call escalate_to_human with reason='user_requested'. "
+        "If the customer reports an issue that needs follow-up, use create_support_ticket with "
+        "a specific, detailed issue_summary -- ask clarifying questions first if the customer's "
+        "description is vague. Only create one ticket per distinct issue."
     )
 )
 
 _llm = ChatAnthropic(
     model=settings.anthropic_model,
     api_key=settings.anthropic_api_key,
-).bind_tools([get_order, get_order_status, escalate_to_human])
+).bind_tools([get_order, get_order_status, escalate_to_human, create_support_ticket])
 
 
 def intake(state: AgentState) -> dict:
@@ -78,6 +84,61 @@ def guardrail(state: AgentState) -> dict:
         "retry_count": retry_count,
         "escalation_reason": EscalationReason.VALIDATION_FAILURE,
     }
+
+
+def _ticket_already_created(messages: list, category: str) -> bool:
+    """Check prior messages for a successful create_support_ticket call with this category."""
+    categories_by_call_id = {
+        tool_call["id"]: tool_call.get("args", {}).get("category")
+        for message in messages
+        for tool_call in getattr(message, "tool_calls", None) or []
+        if tool_call["name"] == CREATE_TICKET_TOOL_NAME
+    }
+    return any(
+        isinstance(message, ToolMessage)
+        and "created=True" in message.content
+        and categories_by_call_id.get(message.tool_call_id) == category
+        for message in messages
+    )
+
+
+def ticket_guardrail(state: AgentState) -> dict:
+    """Reject vague ticket descriptions and block duplicate tickets for the same issue."""
+    tool_call = state["messages"][-1].tool_calls[0]
+    args = tool_call.get("args", {})
+    category = args.get("category")
+    issue_summary = args.get("issue_summary") or ""
+
+    if len(issue_summary.split()) < MIN_ISSUE_SUMMARY_WORDS:
+        retry_count = state.get("retry_count", 0) + 1
+        logger.warning("ticket_guardrail_failed_specificity", retry_count=retry_count)
+        error_message = ToolMessage(
+            content="Issue summary is too vague. Ask the customer for specific details before "
+            "creating a ticket.",
+            tool_call_id=tool_call["id"],
+        )
+        return {
+            "messages": [error_message],
+            "retry_count": retry_count,
+            "escalation_reason": EscalationReason.VALIDATION_FAILURE,
+        }
+
+    if _ticket_already_created(state["messages"][:-1], category):
+        retry_count = state.get("retry_count", 0) + 1
+        logger.warning("ticket_guardrail_failed_idempotency", category=category, retry_count=retry_count)
+        error_message = ToolMessage(
+            content=f"A ticket for this issue (category={category!r}) was already created in "
+            "this conversation. Do not create another.",
+            tool_call_id=tool_call["id"],
+        )
+        return {
+            "messages": [error_message],
+            "retry_count": retry_count,
+            "escalation_reason": EscalationReason.VALIDATION_FAILURE,
+        }
+
+    logger.info("ticket_guardrail_passed", category=category)
+    return {"retry_count": 0, "escalation_reason": None}
 
 
 def check_result(state: AgentState) -> dict:
