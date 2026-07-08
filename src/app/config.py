@@ -21,6 +21,7 @@ class Settings:
     langsmith_tracing: bool
     langsmith_api_key: str | None
     langsmith_project: str
+    log_level: str
 
 
 settings = Settings(
@@ -28,4 +29,5 @@ settings = Settings(
     langsmith_tracing=os.environ.get("LANGSMITH_TRACING", "false").lower() == "true",
     langsmith_api_key=os.environ.get("LANGSMITH_API_KEY"),
     langsmith_project=os.environ.get("LANGSMITH_PROJECT", "support-agent"),
+    log_level=os.environ.get("LOG_LEVEL", "INFO"),
 )
