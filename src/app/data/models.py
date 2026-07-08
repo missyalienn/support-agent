@@ -8,9 +8,11 @@ class OrderStatus(StrEnum):
     """Lifecycle state of an order."""
 
     PENDING = "pending"
+    PROCESSING = "processing"
     SHIPPED = "shipped"
     DELIVERED = "delivered"
     CANCELLED = "cancelled"
+    RETURNED = "returned"
 
 
 class Customer(BaseModel):
