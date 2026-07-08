@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 import structlog
 from langsmith import Client
 from langsmith.evaluation import evaluate
@@ -10,7 +12,9 @@ logger = structlog.get_logger(__name__)
 
 def target(inputs: dict) -> dict:
     """Run one turn of the graph and surface the fields the evaluators check."""
-    final_state = run_turn(inputs["message"], customer_id=inputs["customer_id"])
+    final_state = run_turn(
+        inputs["message"], customer_id=inputs["customer_id"], conversation_id=str(uuid4())
+    )
     last_message = final_state["messages"][-1]
     escalation_reason = final_state.get("escalation_reason")
     return {

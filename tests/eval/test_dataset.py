@@ -2,13 +2,15 @@ from app.eval.dataset import GOLDEN_EXAMPLES
 from app.eval.run_eval import contains_expected_substring, correct_escalation_reason
 
 
-def test_golden_examples_cover_the_three_documented_scenarios() -> None:
+def test_golden_examples_cover_the_documented_scenarios() -> None:
     cases = {example["outputs"]["case"] for example in GOLDEN_EXAMPLES}
 
     assert cases == {
         "normal_lookup",
         "malformed_input_clarification",
         "mismatched_owner_escalation",
+        "out_of_scope_escalation",
+        "side_effecting_refusal",
     }
 
 

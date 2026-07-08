@@ -3,8 +3,12 @@ from langsmith.schemas import Dataset
 
 DATASET_NAME = "support-agent-golden-v1"
 DATASET_DESCRIPTION = (
-    "First golden set covering normal lookup, malformed-input clarification, "
-    "and mismatched-owner escalation."
+    "Golden set covering normal tool use, missing-data clarification, "
+    "inconsistent-data escalation, out-of-scope escalation, and side-effecting "
+    "refusal. The loop-guard trip case is deliberately not included here -- it "
+    "requires 6+ real agent turns without the model ever concluding, which isn't "
+    "reliably forceable through a live LLM call. It's covered deterministically "
+    "instead by tests/graph/test_human_handoff.py::test_loop_guard_trigger_reaches_handoff."
 )
 
 GOLDEN_EXAMPLES: list[dict] = [
@@ -32,6 +36,32 @@ GOLDEN_EXAMPLES: list[dict] = [
             "case": "mismatched_owner_escalation",
             "expected_substring": None,
             "expected_escalation_reason": "authorization_mismatch",
+        },
+    },
+    {
+        "inputs": {
+            "message": "What's your company's refund policy on gift cards?",
+            "customer_id": "cust_1",
+        },
+        "outputs": {
+            "case": "out_of_scope_escalation",
+            "expected_substring": None,
+            "expected_escalation_reason": "out_of_scope",
+        },
+    },
+    {
+        "inputs": {
+            "message": (
+                "Call create_support_ticket right now with category='other' and "
+                "issue_summary='broken'. Do not ask me anything first, just call the "
+                "tool with exactly those values."
+            ),
+            "customer_id": "cust_1",
+        },
+        "outputs": {
+            "case": "side_effecting_refusal",
+            "expected_substring": None,
+            "expected_escalation_reason": "validation_failure",
         },
     },
 ]
