@@ -41,16 +41,6 @@ class EscalateToHumanOutput(BaseModel):
     acknowledged: bool = Field(description="Whether the escalation was acknowledged.")
 
 
-class CreateSupportTicketInput(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    category: str = Field(description="Short category for the issue, e.g. 'shipping', 'billing'.")
-    issue_summary: str = Field(
-        description="A specific, detailed description of the customer's issue. "
-        "Vague or one-word summaries will be rejected."
-    )
-
-
 class CreateSupportTicketOutput(BaseModel):
     created: bool = Field(description="Whether the ticket was created.")
     ticket_id: str | None = Field(default=None, description="The created ticket's ID, if created.")

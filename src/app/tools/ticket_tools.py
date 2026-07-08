@@ -1,21 +1,26 @@
 from typing import Annotated
 
-from langchain_core.tools import tool
-from langgraph.prebuilt import InjectedState
+from langchain.tools import ToolRuntime, tool
+from pydantic import Field
 
 from app.data.store import save_ticket
-from app.graph.state import AgentState
-from app.tools.schemas import CreateSupportTicketInput, CreateSupportTicketOutput
+from app.tools.schemas import CreateSupportTicketOutput
 
 
-@tool(args_schema=CreateSupportTicketInput)
+@tool
 def create_support_ticket(
-    category: str,
-    issue_summary: str,
-    state: Annotated[AgentState, InjectedState],
+    category: Annotated[str, Field(description="Short category for the issue, e.g. 'shipping', 'billing'.")],
+    issue_summary: Annotated[
+        str,
+        Field(
+            description="A specific, detailed description of the customer's issue. "
+            "Vague or one-word summaries will be rejected."
+        ),
+    ],
+    runtime: ToolRuntime,
 ) -> CreateSupportTicketOutput:
     """Create a support ticket for the customer's issue. Only call this once per issue."""
     ticket = save_ticket(
-        customer_id=state["customer_id"], category=category, issue_summary=issue_summary
+        customer_id=runtime.state["customer_id"], category=category, issue_summary=issue_summary
     )
     return CreateSupportTicketOutput(created=True, ticket_id=ticket.ticket_id)
