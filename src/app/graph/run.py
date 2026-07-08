@@ -6,7 +6,7 @@ from app.graph.state import AgentState
 _graph = build_graph()
 
 
-def run_turn(user_message: str, customer_id: str) -> AgentState:
+def run_turn(user_message: str, customer_id: str, conversation_id: str) -> AgentState:
     """Invoke the graph with a single user message and return the final state."""
     initial_state: AgentState = {
         "messages": [HumanMessage(content=user_message)],
@@ -18,4 +18,5 @@ def run_turn(user_message: str, customer_id: str) -> AgentState:
         "retry_count": 0,
         "turn_count": 0,
     }
-    return _graph.invoke(initial_state)
+    config = {"configurable": {"thread_id": conversation_id}}
+    return _graph.invoke(initial_state, config=config)

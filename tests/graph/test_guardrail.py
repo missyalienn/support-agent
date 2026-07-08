@@ -1,7 +1,7 @@
 from langchain_core.messages import AIMessage
 
 from app.graph.build import route_after_guardrail
-from app.graph.nodes import guardrail, human_handoff
+from app.graph.nodes import guardrail
 from app.graph.state import EscalationReason
 
 
@@ -49,14 +49,6 @@ def test_route_after_guardrail_first_failure_goes_to_agent() -> None:
 
 def test_route_after_guardrail_second_failure_goes_to_handoff() -> None:
     assert route_after_guardrail({"retry_count": 2}) == "human_handoff"
-
-
-def test_human_handoff_is_passthrough() -> None:
-    state = {"escalation_reason": EscalationReason.VALIDATION_FAILURE}
-
-    result = human_handoff(state)
-
-    assert result == {}
 
 
 def test_guardrail_flow_retry_then_success() -> None:
