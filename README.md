@@ -29,28 +29,28 @@ graph TD
     START([START]) --> intake
     intake --> agent
 
-    agent -->|no tool_calls| END([END])
-    agent -->|tool_calls[0].name == escalate_to_human| handle_escalation
-    agent -->|tool_calls[0].name == create_support_ticket| ticket_guardrail
-    agent -->|other tool call| guardrail
-    agent -->|turn_count > MAX_AGENT_TURNS loop guard| human_handoff
+    agent -->|"no tool call"| END([END])
+    agent -->|"calls escalate_to_human"| handle_escalation
+    agent -->|"calls create_support_ticket"| ticket_guardrail
+    agent -->|"calls get_order or get_order_status"| guardrail
+    agent -->|"turn count exceeds MAX_AGENT_TURNS, loop guard"| human_handoff
 
-    guardrail -->|retry_count == 0, valid order_id| tools
-    guardrail -->|retry_count == 1, first failure| agent
-    guardrail -->|retry_count >= 2, second failure| human_handoff
+    guardrail -->|"valid order_id, retry_count reset to 0"| tools
+    guardrail -->|"invalid order_id, first failure"| agent
+    guardrail -->|"invalid order_id, second consecutive failure"| human_handoff
 
-    ticket_guardrail -->|retry_count == 0, valid ticket args| tools
-    ticket_guardrail -->|retry_count == 1, first failure| agent
-    ticket_guardrail -->|retry_count >= 2, second failure| human_handoff
+    ticket_guardrail -->|"valid ticket args, retry_count reset to 0"| tools
+    ticket_guardrail -->|"invalid ticket args, first failure"| agent
+    ticket_guardrail -->|"invalid ticket args, second consecutive failure"| human_handoff
 
     tools --> check_result
 
-    check_result -->|escalation_reason is None| agent
-    check_result -->|escalation_reason set, e.g. authorization_mismatch| human_handoff
+    check_result -->|"order belongs to requesting customer"| agent
+    check_result -->|"order/customer mismatch"| human_handoff
 
-    handle_escalation -->|acknowledges escalate_to_human call| human_handoff
+    handle_escalation -->|"acknowledges the escalation tool call"| human_handoff
 
-    human_handoff -->|interrupt for human pickup| END
+    human_handoff -->|"interrupt for human pickup"| END
 ```
 
 | Node | Type | Responsibility |
