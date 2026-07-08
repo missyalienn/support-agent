@@ -24,6 +24,35 @@ intake → agent ⇄ (guardrail → tools → check_result) → human_handoff
                 ↘ END (agent responds directly, no tool needed)
 ```
 
+```mermaid
+graph TD
+    START([START]) --> intake
+    intake --> agent
+
+    agent -->|no tool_calls| END([END])
+    agent -->|tool_calls[0].name == escalate_to_human| handle_escalation
+    agent -->|tool_calls[0].name == create_support_ticket| ticket_guardrail
+    agent -->|other tool call| guardrail
+    agent -->|turn_count > MAX_AGENT_TURNS loop guard| human_handoff
+
+    guardrail -->|retry_count == 0, valid order_id| tools
+    guardrail -->|retry_count == 1, first failure| agent
+    guardrail -->|retry_count >= 2, second failure| human_handoff
+
+    ticket_guardrail -->|retry_count == 0, valid ticket args| tools
+    ticket_guardrail -->|retry_count == 1, first failure| agent
+    ticket_guardrail -->|retry_count >= 2, second failure| human_handoff
+
+    tools --> check_result
+
+    check_result -->|escalation_reason is None| agent
+    check_result -->|escalation_reason set, e.g. authorization_mismatch| human_handoff
+
+    handle_escalation -->|acknowledges escalate_to_human call| human_handoff
+
+    human_handoff -->|interrupt for human pickup| END
+```
+
 | Node | Type | Responsibility |
 |---|---|---|
 | `intake` | deterministic | Initializes per-turn counters and defaults. No LLM. |
@@ -65,7 +94,17 @@ curl -X POST http://localhost:8000/chat \
   -d '{"conversation_id": "demo-1", "customer_id": "cust_1", "message": "What items are in order ord_1?"}'
 ```
 
-Response is either the agent's reply, or a handoff notice with `escalated: true` and an `escalation_reason` if the conversation was routed to a human.
+Response is either the agent's reply, or a handoff notice with `escalated: true` and an `escalation_reason` if the conversation was routed to a human. For example, a customer requesting an order that belongs to a different customer triggers a real handoff:
+
+```bash
+curl -X POST http://localhost:8000/chat \
+  -H "Content-Type: application/json" \
+  -d '{"conversation_id": "demo-2", "customer_id": "cust_1", "message": "What is the status of order ord_5?"}'
+```
+
+```json
+{"conversation_id": "demo-2", "message": "This conversation has been escalated to a human agent.", "escalated": true, "escalation_reason": "authorization_mismatch"}
+```
 
 ## Tests
 
