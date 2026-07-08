@@ -23,6 +23,20 @@ def test_get_order_status_found() -> None:
     assert result.status == "pending"
 
 
+def test_get_order_status_processing() -> None:
+    result = get_order_status.invoke({"order_id": "ord_6"})
+
+    assert result.found is True
+    assert result.status == "processing"
+
+
+def test_get_order_status_returned() -> None:
+    result = get_order_status.invoke({"order_id": "ord_7"})
+
+    assert result.found is True
+    assert result.status == "returned"
+
+
 def test_get_order_status_not_found() -> None:
     result = get_order_status.invoke({"order_id": "does_not_exist"})
 

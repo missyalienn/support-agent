@@ -49,6 +49,20 @@ _ORDERS: list[Order] = [
         status=OrderStatus.SHIPPED,
         created_at=datetime(2026, 4, 20),
     ),
+    Order(
+        order_id="ord_6",
+        customer_id="cust_3",
+        items=["Gizmo"],
+        status=OrderStatus.PROCESSING,
+        created_at=datetime(2026, 5, 2),
+    ),
+    Order(
+        order_id="ord_7",
+        customer_id="cust_1",
+        items=["Doohickey"],
+        status=OrderStatus.RETURNED,
+        created_at=datetime(2026, 5, 10),
+    ),
 ]
 
 _TICKETS: list[Ticket] = []

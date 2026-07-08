@@ -16,6 +16,14 @@ def test_get_status_by_id_found() -> None:
     assert get_status_by_id("ord_3") == "pending"
 
 
+def test_get_status_by_id_processing() -> None:
+    assert get_status_by_id("ord_6") == "processing"
+
+
+def test_get_status_by_id_returned() -> None:
+    assert get_status_by_id("ord_7") == "returned"
+
+
 def test_get_status_by_id_not_found() -> None:
     assert get_status_by_id("does_not_exist") is None
 
