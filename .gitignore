@@ -31,3 +31,7 @@ htmlcov/
 
 # Logs
 *.log
+
+# Local files
+x_local/
+
