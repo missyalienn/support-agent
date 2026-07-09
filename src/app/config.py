@@ -27,7 +27,7 @@ class Settings:
 
 settings = Settings(
     anthropic_api_key=_require("ANTHROPIC_API_KEY"),
-    anthropic_model=os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-5"),
+    anthropic_model=os.environ.get("ANTHROPIC_MODEL", "claude-haiku-4-5-20251001"),
     langsmith_tracing=os.environ.get("LANGSMITH_TRACING", "false").lower() == "true",
     langsmith_api_key=os.environ.get("LANGSMITH_API_KEY"),
     langsmith_project=os.environ.get("LANGSMITH_PROJECT", "support-agent"),

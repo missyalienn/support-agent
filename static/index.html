@@ -1,0 +1,192 @@
+<title>Support Agent Demo</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #f4f5f7;
+    display: flex;
+    justify-content: center;
+    padding: 32px 16px;
+  }
+  .widget {
+    width: 100%;
+    max-width: 420px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+    display: flex;
+    flex-direction: column;
+    height: 640px;
+    overflow: hidden;
+  }
+  .header {
+    background: #1f2937;
+    color: #fff;
+    padding: 16px 20px;
+  }
+  .header h1 { margin: 0; font-size: 16px; }
+  .header p { margin: 4px 0 0; font-size: 12px; opacity: 0.7; }
+  .customer-row {
+    padding: 10px 20px;
+    border-bottom: 1px solid #eee;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .customer-row select { font-size: 13px; padding: 2px 4px; }
+  .messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .bubble {
+    max-width: 80%;
+    padding: 10px 14px;
+    border-radius: 14px;
+    font-size: 14px;
+    line-height: 1.4;
+    white-space: pre-wrap;
+  }
+  .bubble.user {
+    align-self: flex-end;
+    background: #2563eb;
+    color: #fff;
+    border-bottom-right-radius: 4px;
+  }
+  .bubble.agent {
+    align-self: flex-start;
+    background: #f1f3f5;
+    color: #111;
+    border-bottom-left-radius: 4px;
+  }
+  .bubble.escalated {
+    align-self: center;
+    background: #fef2f2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+    font-size: 13px;
+    text-align: center;
+  }
+  .composer {
+    display: flex;
+    gap: 8px;
+    padding: 12px;
+    border-top: 1px solid #eee;
+  }
+  .composer input {
+    flex: 1;
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 14px;
+  }
+  .composer button {
+    background: #2563eb;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 0 16px;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .composer button:disabled { opacity: 0.5; cursor: default; }
+</style>
+
+<div class="widget">
+  <div class="header">
+    <h1>Support Agent</h1>
+    <p>Live demo</p>
+  </div>
+  <div class="customer-row">
+    <label for="customer">Demo customer</label>
+    <select id="customer">
+      <option value="cust_1">Ada Lovelace (cust_1)</option>
+      <option value="cust_2">Grace Hopper (cust_2)</option>
+      <option value="cust_3">Alan Turing (cust_3)</option>
+    </select>
+  </div>
+  <div class="messages" id="messages"></div>
+  <form class="composer" id="composer">
+    <input id="input" type="text" placeholder="Ask about an order..." autocomplete="off" />
+    <button type="submit" id="send">Send</button>
+  </form>
+</div>
+
+<script>
+  let conversationId = crypto.randomUUID();
+  const messagesEl = document.getElementById("messages");
+  const composerEl = document.getElementById("composer");
+  const inputEl = document.getElementById("input");
+  const sendEl = document.getElementById("send");
+  const customerEl = document.getElementById("customer");
+
+  let escalated = false;
+
+  function addBubble(text, kind) {
+    const el = document.createElement("div");
+    el.className = `bubble ${kind}`;
+    el.textContent = text;
+    messagesEl.appendChild(el);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  composerEl.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const message = inputEl.value.trim();
+    if (!message || escalated) return;
+
+    addBubble(message, "user");
+    inputEl.value = "";
+    inputEl.disabled = true;
+    sendEl.disabled = true;
+
+    try {
+      const response = await fetch("/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          conversation_id: conversationId,
+          customer_id: customerEl.value,
+          message,
+        }),
+      });
+
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        addBubble(body.detail || `Request failed (${response.status})`, "escalated");
+        return;
+      }
+
+      const data = await response.json();
+      addBubble(data.message, "agent");
+
+      if (data.escalated) {
+        escalated = true;
+        addBubble(
+          `Escalated to a human agent${data.escalation_reason ? `: ${data.escalation_reason}` : ""}`,
+          "escalated"
+        );
+      }
+    } catch (err) {
+      addBubble("Could not reach the support agent.", "escalated");
+    } finally {
+      inputEl.disabled = escalated;
+      sendEl.disabled = escalated;
+      if (!escalated) inputEl.focus();
+    }
+  });
+
+  customerEl.addEventListener("change", () => {
+    conversationId = crypto.randomUUID();
+    escalated = false;
+    inputEl.disabled = false;
+    sendEl.disabled = false;
+    messagesEl.innerHTML = "";
+  });
+</script>

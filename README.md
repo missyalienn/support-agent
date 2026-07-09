@@ -1,8 +1,8 @@
 # Support Agent
 
-A LangGraph-based customer support agent that does more than answer FAQs: it looks up real order data, takes a side-effecting action (opening a support ticket) under explicit guardrails, and hands off to a human when a request is high-stakes, inconsistent, or out of scope — instead of guessing.
+A LangGraph support agent that looks up real orders, opens support tickets, and hands off to a human when something's wrong. Guardrails run as code, separate from the LLM's own reasoning, so a bad order match or malformed request gets caught before it reaches the customer.
 
-Built to demonstrate a specific set of behaviors end-to-end: tool-calling on live state, deterministic guardrails around side effects, a real triggerable human handoff, and evaluated reliability via LangSmith — not just a live demo that happens to work once. Order and customer data is currently backed by an in-memory store shaped like a real API's interface, ready to swap in an actual backend.
+Built to demonstrate four things end-to-end: tool-calling on live state, deterministic guardrails around side effects, a real triggerable human handoff, and reliability checked with LangSmith evals, all running against an in-memory data store that stands in for a production order/customer API. 
 
 ## Capabilities demonstrated
 
